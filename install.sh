@@ -260,12 +260,10 @@ enable_site() {
     step "Mengaktifkan Site Nginx"
     info "Mengaktifkan konfigurasi..."
 
-    # Remove default site if it conflicts on same port
-    if [ -f "${NGINX_CONF_DIR}/sites-enabled/default" ]; then
-        if grep -q "listen ${NGINX_PORT}" "${NGINX_CONF_DIR}/sites-enabled/default" 2>/dev/null; then
-            warn "Menonaktifkan konfigurasi default Nginx (konflik port ${NGINX_PORT})..."
-            rm -f "${NGINX_CONF_DIR}/sites-enabled/default"
-        fi
+    # Remove default site to prevent conflict with other services
+    if [ -f "${NGINX_CONF_DIR}/sites-enabled/default" ] || [ -L "${NGINX_CONF_DIR}/sites-enabled/default" ]; then
+        warn "Menonaktifkan konfigurasi default Nginx untuk mencegah konflik port..."
+        rm -f "${NGINX_CONF_DIR}/sites-enabled/default"
     fi
 
     # Create symlink
