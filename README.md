@@ -17,13 +17,13 @@ Ubah IP address menjadi subdomain dengan mengganti titik (`.`) menjadi dash (`-`
 ### Quick Install (curl)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Chandra2702/dynamic-proxy/main/install.sh | sudo bash -s -- --domain proxy.example.com --port 8080
+curl -fsSL https://raw.githubusercontent.com/Chandra2702/dynamic-proxy/main/install.sh | sudo bash
 ```
 
 ### Quick Install (wget)
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/Chandra2702/dynamic-proxy/main/install.sh | sudo bash -s -- --domain proxy.example.com --port 8080
+wget -qO- https://raw.githubusercontent.com/Chandra2702/dynamic-proxy/main/install.sh | sudo bash
 ```
 
 ### Manual Install (Interaktif)
@@ -42,7 +42,8 @@ sudo bash install.sh --domain proxy.example.com --port 8080
 
 > **Note:** Sesuaikan `proxy.example.com` dengan domain milikmu.
 
-> **Tip:** Install online tanpa `--domain` dan `--port` akan menampilkan dialog interaktif, tapi tidak dijamin bekerja di semua environment (Docker, CI/CD, SSH tanpa TTY). Untuk hasil terbaik, selalu gunakan `--domain` dan `--port` saat install via curl/wget.
+> **Tip (Non-Interaktif):** Jika kamu ingin install online secara otomatis tanpa dialog (misal untuk CI/CD atau Docker), tambahkan flag di akhir perintah seperti ini:  
+> `curl -fsSL https://.../install.sh | sudo bash -s -- --domain proxy.example.com --port 8080`
 
 ## OS yang Didukung
 
