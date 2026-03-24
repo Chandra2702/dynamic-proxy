@@ -17,13 +17,13 @@ Ubah IP address menjadi subdomain dengan mengganti titik (`.`) menjadi dash (`-`
 ### Quick Install (curl)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Chandra2702/dynamic-proxy/main/install.sh | sudo bash -s -- --domain proxy.example.com --port 80
+curl -fsSL https://raw.githubusercontent.com/Chandra2702/dynamic-proxy/main/install.sh | sudo bash -s -- --domain proxy.example.com --port 8080
 ```
 
 ### Quick Install (wget)
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/Chandra2702/dynamic-proxy/main/install.sh | sudo bash -s -- --domain proxy.example.com --port 80
+wget -qO- https://raw.githubusercontent.com/Chandra2702/dynamic-proxy/main/install.sh | sudo bash -s -- --domain proxy.example.com --port 8080
 ```
 
 ### Manual Install (Interaktif)
@@ -37,7 +37,7 @@ sudo bash install.sh
 ### Manual Install (Dengan Argumen)
 
 ```bash
-sudo bash install.sh --domain proxy.example.com --port 80
+sudo bash install.sh --domain proxy.example.com --port 8080
 ```
 
 > **Note:** Sesuaikan `proxy.example.com` dengan domain milikmu.

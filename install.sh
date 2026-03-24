@@ -148,8 +148,8 @@ get_user_input() {
     # Port (skip jika sudah diset via argumen)
     if [[ -z "${NGINX_PORT:-}" ]]; then
         while true; do
-            read -rp "$(echo -e "${CYAN}Masukkan port Nginx (default: 80): ${NC}")" NGINX_PORT < /dev/tty
-            NGINX_PORT=${NGINX_PORT:-80}
+            read -rp "$(echo -e "${CYAN}Masukkan port Nginx (default: 8080): ${NC}")" NGINX_PORT < /dev/tty
+            NGINX_PORT=${NGINX_PORT:-8080}
             if [[ "$NGINX_PORT" =~ ^[0-9]+$ ]] && [ "$NGINX_PORT" -ge 1 ] && [ "$NGINX_PORT" -le 65535 ]; then
                 break
             else
@@ -477,13 +477,13 @@ main() {
             echo ""
             echo "Opsi:"
             echo "  --domain, -d <domain>   Set domain (wajib untuk install online)"
-            echo "  --port, -p <port>       Set port Nginx (default: 80)"
+            echo "  --port, -p <port>       Set port Nginx (default: 8080)"
             echo "  --update, -c            Update domain/port"
             echo "  --uninstall, -u         Hapus Dynamic Proxy"
             echo "  --help, -h              Tampilkan bantuan ini"
             echo ""
             echo "Contoh:"
-            echo "  sudo bash $0 --domain proxy.example.com --port 80"
+            echo "  sudo bash $0 --domain proxy.example.com --port 8080"
             echo "  curl -fsSL https://...install.sh | sudo bash -s -- --domain proxy.example.com"
             echo ""
             exit 0
