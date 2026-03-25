@@ -250,7 +250,7 @@ save_env() {
 # Dynamic Proxy Environment
 DOMAIN=${DOMAIN}
 NGINX_PORT=${NGINX_PORT}
-INSTALLED_AT=$(date '+%Y-%m-%d %H:%M:%S')
+INSTALLED_AT="$(date '+%Y-%m-%d %H:%M:%S')"
 EOF
     success "Konfigurasi disimpan: ${ENV_FILE}"
 }
