@@ -197,12 +197,6 @@ generate_nginx_config() {
 #  Generated: $(date '+%Y-%m-%d %H:%M:%S')
 # ============================================================
 
-# Map client scheme to backend scheme
-map \$http_x_forwarded_proto \$backend_scheme {
-    default \$scheme;
-    "https" https;
-    "http" http;
-}
 
 # BLOK 1: Menangkap IP + Port Custom (Contoh: 192-168-18-2-8080.${DOMAIN})
 server {
@@ -212,21 +206,26 @@ server {
     resolver 8.8.8.8 1.1.1.1 valid=300s;
 
     location / {
-        proxy_pass \$backend_scheme://\$ip1.\$ip2.\$ip3.\$ip4:\$port;
+        proxy_pass http://\$ip1.\$ip2.\$ip3.\$ip4:\$port;
         proxy_intercept_errors on;
         error_page 400 497 502 504 = @https_fallback;
         
         # Rewrite Redirect Headers
-        proxy_redirect "~^(https?)://[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(:\d+)?(/?.*)$" "\$1://\$http_host\$3";
-        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4:\$port/ http://\$http_host/;
-        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4:\$port/ https://\$http_host/;
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4:\$port http://\$http_host;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4:\$port \$scheme://s-\$ip1-\$ip2-\$ip3-\$ip4-\$port.${DOMAIN};
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4:80 http://\$http_host;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4:443 \$scheme://s-\$ip1-\$ip2-\$ip3-\$ip4-\$port.${DOMAIN};
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4 http://\$http_host;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4 \$scheme://s-\$ip1-\$ip2-\$ip3-\$ip4-\$port.${DOMAIN};
 
         # Rewrite Hardcoded IPs in HTML/JS
         proxy_set_header Accept-Encoding "";
         sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4:\$port" "http://\$http_host";
-        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4:\$port" "https://\$http_host";
+        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4:\$port" "\$scheme://s-\$ip1-\$ip2-\$ip3-\$ip4-\$port.${DOMAIN}";
+        sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4:80" "http://\$http_host";
+        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4:443" "\$scheme://s-\$ip1-\$ip2-\$ip3-\$ip4-\$port.${DOMAIN}";
         sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4" "http://\$http_host";
-        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4" "https://\$http_host";
+        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4" "\$scheme://s-\$ip1-\$ip2-\$ip3-\$ip4-\$port.${DOMAIN}";
         sub_filter_once off;
         sub_filter_types *;
 
@@ -246,14 +245,19 @@ server {
         proxy_pass https://\$ip1.\$ip2.\$ip3.\$ip4:\$port;
         
         # Rewrite Redirect Headers
-        proxy_redirect "~^(https?)://[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(:\d+)?(/?.*)$" "\$1://\$http_host\$3";
-        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4:\$port/ http://\$http_host/;
-        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4:\$port/ https://\$http_host/;
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4:\$port http://\$http_host;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4:\$port https://\$http_host;
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4:80 http://\$http_host;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4:443 https://\$http_host;
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4 http://\$http_host;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4 https://\$http_host;
 
         # Rewrite Hardcoded IPs in HTML/JS
         proxy_set_header Accept-Encoding "";
         sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4:\$port" "http://\$http_host";
         sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4:\$port" "https://\$http_host";
+        sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4:80" "http://\$http_host";
+        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4:443" "https://\$http_host";
         sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4" "http://\$http_host";
         sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4" "https://\$http_host";
         sub_filter_once off;
@@ -281,19 +285,22 @@ server {
     resolver 8.8.8.8 1.1.1.1 valid=300s;
 
     location / {
-        proxy_pass \$backend_scheme://\$ip1.\$ip2.\$ip3.\$ip4;
+        proxy_pass http://\$ip1.\$ip2.\$ip3.\$ip4;
         proxy_intercept_errors on;
         error_page 400 497 502 504 = @https_fallback;
         
         # Rewrite Redirect Headers
-        proxy_redirect "~^(https?)://[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(:\d+)?(/?.*)$" "\$1://\$http_host\$3";
-        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4/ http://\$http_host/;
-        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4/ https://\$http_host/;
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4:80 http://\$http_host;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4:443 \$scheme://s-\$ip1-\$ip2-\$ip3-\$ip4.${DOMAIN};
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4 http://\$http_host;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4 \$scheme://s-\$ip1-\$ip2-\$ip3-\$ip4.${DOMAIN};
 
         # Rewrite Hardcoded IPs in HTML/JS
         proxy_set_header Accept-Encoding "";
+        sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4:80" "http://\$http_host";
+        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4:443" "\$scheme://s-\$ip1-\$ip2-\$ip3-\$ip4.${DOMAIN}";
         sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4" "http://\$http_host";
-        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4" "https://\$http_host";
+        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4" "\$scheme://s-\$ip1-\$ip2-\$ip3-\$ip4.${DOMAIN}";
         sub_filter_once off;
         sub_filter_types *;
 
@@ -313,12 +320,15 @@ server {
         proxy_pass https://\$ip1.\$ip2.\$ip3.\$ip4;
         
         # Rewrite Redirect Headers
-        proxy_redirect "~^(https?)://[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(:\d+)?(/?.*)$" "\$1://\$http_host\$3";
-        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4/ http://\$http_host/;
-        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4/ https://\$http_host/;
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4:80 http://\$http_host;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4:443 https://\$http_host;
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4 http://\$http_host;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4 https://\$http_host;
 
         # Rewrite Hardcoded IPs in HTML/JS
         proxy_set_header Accept-Encoding "";
+        sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4:80" "http://\$http_host";
+        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4:443" "https://\$http_host";
         sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4" "http://\$http_host";
         sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4" "https://\$http_host";
         sub_filter_once off;
@@ -349,14 +359,19 @@ server {
         proxy_pass https://\$ip1.\$ip2.\$ip3.\$ip4:\$port;
         
         # Rewrite Redirect Headers
-        proxy_redirect "~^(https?)://[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(:\d+)?(/?.*)$" "\$1://\$http_host\$3";
-        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4:\$port/ http://\$http_host/;
-        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4:\$port/ https://\$http_host/;
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4:\$port http://\$http_host;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4:\$port https://\$http_host;
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4:80 http://\$http_host;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4:443 https://\$http_host;
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4 http://\$http_host;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4 https://\$http_host;
 
         # Rewrite Hardcoded IPs in HTML/JS
         proxy_set_header Accept-Encoding "";
         sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4:\$port" "http://\$http_host";
         sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4:\$port" "https://\$http_host";
+        sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4:80" "http://\$http_host";
+        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4:443" "https://\$http_host";
         sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4" "http://\$http_host";
         sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4" "https://\$http_host";
         sub_filter_once off;
@@ -387,12 +402,15 @@ server {
         proxy_pass https://\$ip1.\$ip2.\$ip3.\$ip4;
         
         # Rewrite Redirect Headers
-        proxy_redirect "~^(https?)://[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(:\d+)?(/?.*)$" "\$1://\$http_host\$3";
-        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4/ http://\$http_host/;
-        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4/ https://\$http_host/;
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4:80 http://\$http_host;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4:443 https://\$http_host;
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4 http://\$http_host;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4 https://\$http_host;
 
         # Rewrite Hardcoded IPs in HTML/JS
         proxy_set_header Accept-Encoding "";
+        sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4:80" "http://\$http_host";
+        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4:443" "https://\$http_host";
         sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4" "http://\$http_host";
         sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4" "https://\$http_host";
         sub_filter_once off;
