@@ -197,6 +197,13 @@ generate_nginx_config() {
 #  Generated: $(date '+%Y-%m-%d %H:%M:%S')
 # ============================================================
 
+# Map client scheme to backend scheme
+map \$http_x_forwarded_proto \$backend_scheme {
+    default \$scheme;
+    "https" https;
+    "http" http;
+}
+
 # BLOK 1: Menangkap IP + Port Custom (Contoh: 192-168-18-2-8080.${DOMAIN})
 server {
     listen ${NGINX_PORT};
@@ -205,9 +212,57 @@ server {
     resolver 8.8.8.8 1.1.1.1 valid=300s;
 
     location / {
-        proxy_pass http://\$ip1.\$ip2.\$ip3.\$ip4:\$port;
+        proxy_pass \$backend_scheme://\$ip1.\$ip2.\$ip3.\$ip4:\$port;
+        proxy_intercept_errors on;
+        error_page 400 497 502 504 = @https_fallback;
+        
+        # Rewrite Redirect Headers
+        proxy_redirect "~^(https?)://[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(:\d+)?(/?.*)$" "\$1://\$http_host\$3";
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4:\$port/ http://\$http_host/;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4:\$port/ https://\$http_host/;
 
-        proxy_set_header Host \$host;
+        # Rewrite Hardcoded IPs in HTML/JS
+        proxy_set_header Accept-Encoding "";
+        sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4:\$port" "http://\$http_host";
+        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4:\$port" "https://\$http_host";
+        sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4" "http://\$http_host";
+        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4" "https://\$http_host";
+        sub_filter_once off;
+        sub_filter_types *;
+
+        proxy_set_header Host \$ip1.\$ip2.\$ip3.\$ip4;
+        chunked_transfer_encoding off;
+        proxy_buffering off;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+
+        proxy_read_timeout 300;
+        proxy_connect_timeout 300;
+        proxy_send_timeout 300;
+    }
+
+    location @https_fallback {
+        proxy_pass https://\$ip1.\$ip2.\$ip3.\$ip4:\$port;
+        
+        # Rewrite Redirect Headers
+        proxy_redirect "~^(https?)://[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(:\d+)?(/?.*)$" "\$1://\$http_host\$3";
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4:\$port/ http://\$http_host/;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4:\$port/ https://\$http_host/;
+
+        # Rewrite Hardcoded IPs in HTML/JS
+        proxy_set_header Accept-Encoding "";
+        sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4:\$port" "http://\$http_host";
+        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4:\$port" "https://\$http_host";
+        sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4" "http://\$http_host";
+        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4" "https://\$http_host";
+        sub_filter_once off;
+        sub_filter_types *;
+
+        proxy_ssl_verify off;
+        proxy_set_header Host \$ip1.\$ip2.\$ip3.\$ip4;
+        chunked_transfer_encoding off;
+        proxy_buffering off;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
@@ -226,9 +281,127 @@ server {
     resolver 8.8.8.8 1.1.1.1 valid=300s;
 
     location / {
-        proxy_pass http://\$ip1.\$ip2.\$ip3.\$ip4;
+        proxy_pass \$backend_scheme://\$ip1.\$ip2.\$ip3.\$ip4;
+        proxy_intercept_errors on;
+        error_page 400 497 502 504 = @https_fallback;
+        
+        # Rewrite Redirect Headers
+        proxy_redirect "~^(https?)://[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(:\d+)?(/?.*)$" "\$1://\$http_host\$3";
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4/ http://\$http_host/;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4/ https://\$http_host/;
 
-        proxy_set_header Host \$host;
+        # Rewrite Hardcoded IPs in HTML/JS
+        proxy_set_header Accept-Encoding "";
+        sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4" "http://\$http_host";
+        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4" "https://\$http_host";
+        sub_filter_once off;
+        sub_filter_types *;
+
+        proxy_set_header Host \$ip1.\$ip2.\$ip3.\$ip4;
+        chunked_transfer_encoding off;
+        proxy_buffering off;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+
+        proxy_read_timeout 300;
+        proxy_connect_timeout 300;
+        proxy_send_timeout 300;
+    }
+
+    location @https_fallback {
+        proxy_pass https://\$ip1.\$ip2.\$ip3.\$ip4;
+        
+        # Rewrite Redirect Headers
+        proxy_redirect "~^(https?)://[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(:\d+)?(/?.*)$" "\$1://\$http_host\$3";
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4/ http://\$http_host/;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4/ https://\$http_host/;
+
+        # Rewrite Hardcoded IPs in HTML/JS
+        proxy_set_header Accept-Encoding "";
+        sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4" "http://\$http_host";
+        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4" "https://\$http_host";
+        sub_filter_once off;
+        sub_filter_types *;
+
+        proxy_ssl_verify off;
+        proxy_set_header Host \$ip1.\$ip2.\$ip3.\$ip4;
+        chunked_transfer_encoding off;
+        proxy_buffering off;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+
+        proxy_read_timeout 300;
+        proxy_connect_timeout 300;
+        proxy_send_timeout 300;
+    }
+}
+
+# BLOK 3: Menangkap IP + Port Custom HTTPS (Contoh: s-192-168-18-2-8443.${DOMAIN})
+server {
+    listen ${NGINX_PORT};
+    server_name ~^s-(?<ip1>\d+)-(?<ip2>\d+)-(?<ip3>\d+)-(?<ip4>\d+)-(?<port>\d+)\.${ESCAPED_DOMAIN}\$;
+
+    resolver 8.8.8.8 1.1.1.1 valid=300s;
+
+    location / {
+        proxy_pass https://\$ip1.\$ip2.\$ip3.\$ip4:\$port;
+        
+        # Rewrite Redirect Headers
+        proxy_redirect "~^(https?)://[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(:\d+)?(/?.*)$" "\$1://\$http_host\$3";
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4:\$port/ http://\$http_host/;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4:\$port/ https://\$http_host/;
+
+        # Rewrite Hardcoded IPs in HTML/JS
+        proxy_set_header Accept-Encoding "";
+        sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4:\$port" "http://\$http_host";
+        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4:\$port" "https://\$http_host";
+        sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4" "http://\$http_host";
+        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4" "https://\$http_host";
+        sub_filter_once off;
+        sub_filter_types *;
+
+        proxy_ssl_verify off;
+        proxy_set_header Host \$ip1.\$ip2.\$ip3.\$ip4;
+        chunked_transfer_encoding off;
+        proxy_buffering off;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+
+        proxy_read_timeout 300;
+        proxy_connect_timeout 300;
+        proxy_send_timeout 300;
+    }
+}
+
+# BLOK 4: Menangkap IP Standar HTTPS (Contoh: s-192-168-18-2.${DOMAIN})
+server {
+    listen ${NGINX_PORT};
+    server_name ~^s-(?<ip1>\d+)-(?<ip2>\d+)-(?<ip3>\d+)-(?<ip4>\d+)\.${ESCAPED_DOMAIN}\$;
+
+    resolver 8.8.8.8 1.1.1.1 valid=300s;
+
+    location / {
+        proxy_pass https://\$ip1.\$ip2.\$ip3.\$ip4;
+        
+        # Rewrite Redirect Headers
+        proxy_redirect "~^(https?)://[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(:\d+)?(/?.*)$" "\$1://\$http_host\$3";
+        proxy_redirect http://\$ip1.\$ip2.\$ip3.\$ip4/ http://\$http_host/;
+        proxy_redirect https://\$ip1.\$ip2.\$ip3.\$ip4/ https://\$http_host/;
+
+        # Rewrite Hardcoded IPs in HTML/JS
+        proxy_set_header Accept-Encoding "";
+        sub_filter "http://\$ip1.\$ip2.\$ip3.\$ip4" "http://\$http_host";
+        sub_filter "https://\$ip1.\$ip2.\$ip3.\$ip4" "https://\$http_host";
+        sub_filter_once off;
+        sub_filter_types *;
+
+        proxy_ssl_verify off;
+        proxy_set_header Host \$ip1.\$ip2.\$ip3.\$ip4;
+        chunked_transfer_encoding off;
+        proxy_buffering off;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
@@ -304,13 +477,17 @@ print_usage() {
     echo ""
     echo -e "${BOLD}Cara Penggunaan:${NC}"
     echo ""
-    echo -e "  ${CYAN}1. Akses IP tanpa port custom:${NC}"
+    echo -e "  ${CYAN}1. Akses IP tanpa port custom (HTTP):${NC}"
     echo -e "     http://${YELLOW}192-168-1-100${NC}.${DOMAIN}:${NGINX_PORT}"
     echo -e "     → Proxy ke http://192.168.1.100"
     echo ""
-    echo -e "  ${CYAN}2. Akses IP dengan port custom:${NC}"
+    echo -e "  ${CYAN}2. Akses IP dengan port custom (HTTP):${NC}"
     echo -e "     http://${YELLOW}192-168-1-100-8080${NC}.${DOMAIN}:${NGINX_PORT}"
     echo -e "     → Proxy ke http://192.168.1.100:8080"
+    echo ""
+    echo -e "  ${CYAN}3. Akses HTTPS Router (Tambahkan 's-'):${NC}"
+    echo -e "     http://${YELLOW}s-192-168-1-100${NC}.${DOMAIN}:${NGINX_PORT}"
+    echo -e "     → Proxy ke https://192.168.1.100"
     echo ""
     echo -e "${BOLD}DNS Setup:${NC}"
     echo -e "  Tambahkan wildcard DNS record:"
