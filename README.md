@@ -1,4 +1,4 @@
-# 🔀 Dynamic Proxy
+# 🔀 Dynamic Proxy Domain
 
 Nginx-based dynamic reverse proxy dengan wildcard subdomain. Akses perangkat di jaringan lokal melalui subdomain tanpa konfigurasi manual per-device.
 
@@ -8,11 +8,11 @@ Ubah IP address menjadi subdomain dengan mengganti titik (`.`) menjadi dash (`-`
 
 | Subdomain | Proxy ke |
 |---|---|
-| `192-168-1-100.proxy.example.com` | `http://192.168.1.100` *(Otomatis fallback ke `https://` jika ditolak)*|
-| `192-168-1-100-8080.proxy.example.com` | `http://192.168.1.100:8080` |
-| `10-0-0-1-3000.proxy.example.com` | `http://10.0.0.1:3000` |
-| `s-192-168-1-100.proxy.example.com` | `https://192.168.1.100` *(Memaksa HTTPS)* |
-| `s-10-0-0-1-8443.proxy.example.com` | `https://10.0.0.1:8443` |
+| `192-168-1-100.domain.com` | `http://192.168.1.100` *(Otomatis fallback ke `https://` jika ditolak)*|
+| `192-168-1-100-8080.domain.com` | `http://192.168.1.100:8080` |
+| `10-0-0-1-3000.domain.com` | `http://10.0.0.1:3000` |
+| `s-192-168-1-100.domain.com` | `https://192.168.1.100` *(Memaksa HTTPS)* |
+| `s-10-0-0-1-8443.domain.com` | `https://10.0.0.1:8443` |
 
 ## Prasyarat
 
@@ -71,7 +71,7 @@ irm https://raw.githubusercontent.com/Chandra2702/dynamic-proxy/main/install-win
 ### Manual Install (Dengan Argumen)
 
 ```cmd
-install-win.bat --domain proxy.example.com --port 8080
+install-win.bat --domain domain.example.com --port 8080
 ```
 
 > **Note:** Installer akan otomatis mengunduh Nginx ke `C:\nginx`, menginstal PM2 global, dan mengatur auto-start saat boot.
@@ -153,17 +153,17 @@ Bisa menggunakan:
 
 ## Contoh Penggunaan
 
-Misalkan domain: `proxy.example.com`, port Nginx: `80`
+Misalkan domain: `domain.com`, port Nginx: `80`
 
 ```bash
 # Akses router di 192.168.1.1
-curl http://192-168-1-1.proxy.example.com
+curl http://192-168-1-1.domain.com
 
 # Akses aplikasi di 192.168.1.100 port 3000
-curl http://192-168-1-100-3000.proxy.example.com
+curl http://192-168-1-100-3000.domain.com
 
 # Akses kamera di 10.0.0.50 port 8080
-curl http://10-0-0-50-8080.proxy.example.com
+curl http://10-0-0-50-8080.domain.com
 ```
 
 ## Struktur File
