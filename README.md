@@ -1,44 +1,30 @@
 # 🔀 Dynamic Proxy
 
-Nginx-based dynamic reverse proxy dengan wildcard subdomain. Akses perangkat di jaringan lokal melalui subdomain tanpa konfigurasi manual per-device. Sangat cocok digunakan bersama Cloudflare, VPN, atau Tunneling.
-
-## Fitur Utama Baru ✨
-- **Auto-HTTPS Fallback**: Punya router (seperti TP-Link) yang menolak koneksi HTTP dan memaksa HTTPS? Nginx sekarang akan secara otomatis mendeteksi hal tersebut dan beralih mengakses via HTTPS di belakang layar! Aplikasi Anda tidak perlu diubah.
-- **Intelligent Redirect Loop Breaker**: Mencegah *error* `ERR_TOO_MANY_REDIRECTS` saat mengakses perangkat yang sering me-redirect HTTP secara paksa.
-- **Manual Secure Prefix (`s-`)**: Opsi untuk *memaksa* Nginx terhubung ke perangkat lokal menggunakan jalur aman HTTPS dengan hanya menambahkan awalan `s-`.
-- **Proteksi Host/Blank Page**: Otomatis menangani *Chunked Encoding* dan *Host Header* agar halaman login router selalu tampil sempurna tanpa blank page.
+Nginx-based dynamic reverse proxy dengan wildcard subdomain. Akses perangkat di jaringan lokal melalui subdomain tanpa konfigurasi manual per-device.
 
 ## Cara Kerja
 
-Ubah IP address lokal menjadi subdomain dengan mengganti titik (`.`) menjadi dash (`-`):
+Ubah IP address menjadi subdomain dengan mengganti titik (`.`) menjadi dash (`-`):
 
-| Subdomain | Proxy ke (Backend) |
+| Subdomain | Proxy ke |
 |---|---|
-| `192-168-1-100.proxy.example.com` | `http://192.168.1.100` *(Otomatis fallback ke `https://` jika ditolak)* |
+| `192-168-1-100.proxy.example.com` | `http://192.168.1.100` |
 | `192-168-1-100-8080.proxy.example.com` | `http://192.168.1.100:8080` |
-| `s-192-168-1-100.proxy.example.com` | `https://192.168.1.100` *(Memaksa HTTPS)* |
-| `s-10-0-0-1-8443.proxy.example.com` | `https://10.0.0.1:8443` |
+| `10-0-0-1-3000.proxy.example.com` | `http://10.0.0.1:3000` |
 
-## Instalasi
+## Prasyarat
+
+- **Node.js** (untuk PM2 auto-start saat boot)
+- **npm** (biasanya sudah termasuk bersama Node.js)
+
+> **Note:** Jika Node.js tidak terinstal, Nginx tetap akan berjalan tapi **tidak akan auto-start** saat reboot.
+
+## Instalasi Linux
 
 ### Quick Install (curl)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Chandra2702/dynamic-proxy/main/install.sh | sudo bash
-```
-
-### Quick Update (curl)
-
-Jika sudah pernah install dan ingin melakukan update dari GitHub:
-```bash
-curl -fsSL https://raw.githubusercontent.com/Chandra2702/dynamic-proxy/main/install.sh | sudo bash -s -- --update
-```
-
-### Quick Uninstall (curl)
-
-Untuk menghapus Dynamic Proxy secara penuh dari server:
-```bash
-curl -fsSL https://raw.githubusercontent.com/Chandra2702/dynamic-proxy/main/install.sh | sudo bash -s -- --uninstall
 ```
 
 ### Quick Install (wget)
@@ -47,30 +33,50 @@ curl -fsSL https://raw.githubusercontent.com/Chandra2702/dynamic-proxy/main/inst
 wget -qO- https://raw.githubusercontent.com/Chandra2702/dynamic-proxy/main/install.sh | sudo bash
 ```
 
-### Quick Update (wget)
+### Manual Install (Interaktif)
 
-Jika sudah pernah install dan ingin melakukan update menggunakan wget:
 ```bash
-wget -qO- https://raw.githubusercontent.com/Chandra2702/dynamic-proxy/main/install.sh | sudo bash -s -- --update
+git clone https://github.com/Chandra2702/dynamic-proxy.git
+cd dynamic-proxy
+sudo bash install.sh
 ```
 
-### Quick Uninstall (wget)
+### Manual Install (Dengan Argumen)
 
-Untuk menghapus menggunakan wget:
 ```bash
-wget -qO- https://raw.githubusercontent.com/Chandra2702/dynamic-proxy/main/install.sh | sudo bash -s -- --uninstall
+sudo bash install.sh --domain proxy.example.com --port 8080
 ```
 
-### Manual Install (Dengan Argumen / Non-Interaktif)
+> **Tip (Non-Interaktif):** Untuk install otomatis tanpa dialog (misal untuk CI/CD atau Docker):
+> `curl -fsSL https://.../install.sh | sudo bash -s -- --domain proxy.example.com --port 8080`
 
-Jika kamu ingin install otomatis tanpa dialog (misal untuk CI/CD atau Docker), tambahkan flag di akhir perintah seperti ini:  
-```bash
-curl -fsSL https://raw.githubusercontent.com/Chandra2702/dynamic-proxy/main/install.sh | sudo bash -s -- --domain proxy.example.com --port 8080
+## Instalasi Windows
+
+### Quick Install (PowerShell)
+
+Buka **PowerShell sebagai Administrator**, lalu jalankan:
+
+```powershell
+irm https://raw.githubusercontent.com/Chandra2702/dynamic-proxy/main/install-win.bat -OutFile "$env:TEMP\install-win.bat"; Start-Process "$env:TEMP\install-win.bat" -Verb RunAs
 ```
 
-> **Note:** Sesuaikan `proxy.example.com` dengan domain milikmu.
+### Manual Install (Interaktif)
+
+1. Download atau clone repository ini
+2. Double-click `install-win.bat` (otomatis minta hak Administrator)
+3. Ikuti dialog interaktif untuk memasukkan domain dan port
+
+### Manual Install (Dengan Argumen)
+
+```cmd
+install-win.bat --domain proxy.example.com --port 8080
+```
+
+> **Note:** Installer akan otomatis mengunduh Nginx ke `C:\nginx`, menginstal PM2 global, dan mengatur auto-start saat boot.
 
 ## OS yang Didukung
+
+### Linux
 
 | Base | Distro |
 |---|---|
@@ -78,14 +84,19 @@ curl -fsSL https://raw.githubusercontent.com/Chandra2702/dynamic-proxy/main/inst
 | **RPM** | CentOS, RHEL, Fedora, Rocky Linux, AlmaLinux |
 | **Arch** | Arch Linux, Manjaro, EndeavourOS, Garuda, Artix, CachyOS |
 
+### Windows
+
+| OS | Versi |
+|---|---|
+| **Windows** | Windows 10, Windows 11, Windows Server 2016+ |
+
 ## Manajemen
 
-```bash
-# Update konfigurasi dari file lokal
-sudo bash install.sh --update
+### Linux
 
-# Update LANGSUNG dari GitHub (jika ada update/rilis fitur baru di repository)
-curl -fsSL https://raw.githubusercontent.com/Chandra2702/dynamic-proxy/main/install.sh | sudo bash -s -- --update
+```bash
+# Update domain / port
+sudo bash install.sh --update
 
 # Uninstall
 sudo bash install.sh --uninstall
@@ -94,9 +105,41 @@ sudo bash install.sh --uninstall
 sudo bash install.sh --help
 ```
 
+### Windows
+
+```cmd
+:: Update domain / port
+install-win.bat --update
+
+:: Uninstall
+install-win.bat --uninstall
+
+:: Bantuan
+install-win.bat --help
+```
+
+### PM2 (Linux & Windows)
+
+```bash
+# Cek status Nginx
+pm2 status
+
+# Restart Nginx
+pm2 restart dynamic-proxy
+
+# Lihat log Nginx
+pm2 logs dynamic-proxy
+
+# Stop Nginx
+pm2 stop dynamic-proxy
+
+# Start Nginx
+pm2 start dynamic-proxy
+```
+
 ## DNS Setup
 
-Tambahkan **wildcard DNS record** yang mengarah ke IP server/proxy:
+Tambahkan **wildcard DNS record** yang mengarah ke IP server:
 
 ```
 *.proxy.example.com  →  IP_SERVER
@@ -108,18 +151,38 @@ Bisa menggunakan:
 
 ## Contoh Penggunaan
 
-Misalkan domain: `proxy.example.com`, port Nginx: `8081`
+Misalkan domain: `proxy.example.com`, port Nginx: `80`
 
 ```bash
-# 1. Akses router di 192.168.1.1 (Otomatis handle HTTP/HTTPS)
-curl http://192-168-1-1.proxy.example.com:8081
+# Akses router di 192.168.1.1
+curl http://192-168-1-1.proxy.example.com
 
-# 2. Akses aplikasi di 192.168.1.100 port 3000
-curl http://192-168-1-100-3000.proxy.example.com:8081
+# Akses aplikasi di 192.168.1.100 port 3000
+curl http://192-168-1-100-3000.proxy.example.com
 
-# 3. Paksa akses ke antarmuka HTTPS router
-curl http://s-192-168-33-2.proxy.example.com:8081
+# Akses kamera di 10.0.0.50 port 8080
+curl http://10-0-0-50-8080.proxy.example.com
 ```
+
+## Struktur File
+
+```
+dynamic-proxy/
+├── install.sh          # Installer untuk Linux
+├── install-win.bat     # Installer untuk Windows
+└── README.md
+```
+
+### File yang dibuat saat instalasi
+
+| File | Platform | Keterangan |
+|---|---|---|
+| `/etc/nginx/sites-available/dynamic-proxy` | Linux | Konfigurasi Nginx |
+| `/etc/dynamic-proxy.env` | Linux | Environment (domain, port) |
+| `/etc/dynamic-proxy-ecosystem.config.js` | Linux | PM2 ecosystem config |
+| `C:\nginx\conf\nginx.conf` | Windows | Konfigurasi Nginx |
+| `C:\dynamic-proxy.env` | Windows | Environment (domain, port) |
+| `C:\nginx\ecosystem.config.js` | Windows | PM2 ecosystem config |
 
 ## Lisensi
 
