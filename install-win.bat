@@ -6,15 +6,22 @@ echo ====================================================
 echo   Dynamic Proxy Installer for Windows
 echo ====================================================
 
+set "PROXY_ARGS=%*"
+
 :: Cek Hak Akses Administrator
 net session >nul 2>&1
 if %errorLevel% neq 0 (
     echo Meminta hak akses Administrator...
-    powershell -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+    if "%~1"=="" (
+        powershell -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+    ) else (
+        powershell -Command "Start-Process -FilePath '%~f0' -Verb RunAs -ArgumentList '%*'"
+    )
     exit /b
 )
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-Expression $([System.IO.File]::ReadAllText('%~f0'))"
+set "PROXY_ARGS=%*"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$env:PROXY_ARGS='%PROXY_ARGS%'; Invoke-Expression $([System.IO.File]::ReadAllText('%~f0'))"
 echo.
 pause
 goto :eof
@@ -64,15 +71,21 @@ $Action = "install"
 $Domain = ""
 $NginxPort = ""
 
+# Parse dari environment variable (diset oleh batch header)
+$proxyArgsList = @()
+if ($env:PROXY_ARGS) {
+    $proxyArgsList = @($env:PROXY_ARGS -split '\s+')
+}
+
 $i = 0
-while ($i -lt $args.Count) {
-    switch ($args[$i]) {
+while ($i -lt $proxyArgsList.Count) {
+    switch ($proxyArgsList[$i]) {
         { $_ -in "--domain", "-d" } {
-            $Domain = $args[$i + 1]
+            $Domain = $proxyArgsList[$i + 1]
             $i += 2
         }
         { $_ -in "--port", "-p" } {
-            $NginxPort = $args[$i + 1]
+            $NginxPort = $proxyArgsList[$i + 1]
             $i += 2
         }
         { $_ -in "--uninstall", "-u" } {
@@ -88,9 +101,12 @@ while ($i -lt $args.Count) {
             $i++
         }
         default {
-            Error-Msg "Opsi tidak dikenal: $($args[$i])"
-            Write-Host "Gunakan --help untuk bantuan."
-            exit 1
+            if (![string]::IsNullOrWhiteSpace($proxyArgsList[$i])) {
+                Error-Msg "Opsi tidak dikenal: $($proxyArgsList[$i])"
+                Write-Host "Gunakan --help untuk bantuan."
+                exit 1
+            }
+            $i++
         }
     }
 }
@@ -281,16 +297,29 @@ INSTALLED_AT="$Date"
 # ── Test & reload Nginx ─────────────────────────────────────
 function Test-AndReload {
     Step "Menguji & Memuat Ulang Nginx"
-    Info "Menguji konfigurasi Nginx..."
 
     $nginxExe = Join-Path $InstallDir "nginx.exe"
+    $logsDir = Join-Path $InstallDir "logs"
 
-    $testResult = & $nginxExe -t 2>&1
-    if ($LASTEXITCODE -eq 0) {
+    # Pastikan folder logs ada
+    if (!(Test-Path $logsDir)) {
+        New-Item -ItemType Directory -Path $logsDir -Force | Out-Null
+    }
+
+    Info "Menguji konfigurasi Nginx..."
+    $prevEAP = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    Push-Location $InstallDir
+    $testResult = & .\nginx.exe -t 2>&1
+    $testExitCode = $LASTEXITCODE
+    Pop-Location
+    $ErrorActionPreference = $prevEAP
+
+    if ($testExitCode -eq 0) {
         Success "Konfigurasi Nginx valid!"
     } else {
         Error-Msg "Konfigurasi Nginx tidak valid! Periksa file: $ConfPath"
-        Write-Host $testResult
+        Write-Host ($testResult | Out-String)
         exit 1
     }
 
@@ -360,16 +389,54 @@ function Setup-PM2 {
         return
     }
 
+    # Dapatkan npm global prefix
+    $npmPrefix = (cmd /c "npm config get prefix" 2>&1 | Out-String).Trim()
+    if ([string]::IsNullOrWhiteSpace($npmPrefix) -or $npmPrefix -match "Unknown command") {
+        $npmPrefix = Join-Path $env:APPDATA "npm"
+    }
+    Info "npm global prefix: $npmPrefix"
+
+    # Tambahkan npm prefix ke PATH session ini
+    if ($env:PATH -notlike "*$npmPrefix*") {
+        $env:PATH = "$npmPrefix;$env:PATH"
+    }
+
+    # Tambahkan npm prefix ke system PATH secara PERMANEN
+    $systemPath = [Environment]::GetEnvironmentVariable("PATH", "Machine")
+    if ($systemPath -notlike "*$npmPrefix*") {
+        [Environment]::SetEnvironmentVariable("PATH", "$systemPath;$npmPrefix", "Machine")
+        Info "npm prefix ditambahkan ke system PATH secara permanen."
+    }
+
+    # Dapatkan path Node.js dan tambahkan ke system PATH juga
+    $nodePath = (Get-Command node -ErrorAction SilentlyContinue).Source | Split-Path
+    if ($nodePath) {
+        $systemPath = [Environment]::GetEnvironmentVariable("PATH", "Machine")
+        if ($systemPath -notlike "*$nodePath*") {
+            [Environment]::SetEnvironmentVariable("PATH", "$systemPath;$nodePath", "Machine")
+            Info "Node.js path ditambahkan ke system PATH secara permanen."
+        }
+    }
+
     # Install PM2 global
     $pm2Cmd = Get-Command pm2 -ErrorAction SilentlyContinue
     if (-not $pm2Cmd) {
         Info "Menginstal PM2 secara global..."
-        & npm install -g pm2 2>&1 | Out-Null
+        cmd /c "npm install -g pm2" 2>&1
+
+        # Refresh PATH dan cek ulang
+        $env:PATH = "$npmPrefix;$env:PATH"
         $pm2Cmd = Get-Command pm2 -ErrorAction SilentlyContinue
         if (-not $pm2Cmd) {
-            Error-Msg "Gagal menginstal PM2."
-            Warn "Melewati setup PM2..."
-            return
+            $pm2Path = Join-Path $npmPrefix "pm2.cmd"
+            if (Test-Path $pm2Path) {
+                Info "PM2 ditemukan di: $pm2Path"
+            } else {
+                Error-Msg "Gagal menginstal PM2."
+                Warn "Coba jalankan manual: npm install -g pm2"
+                Warn "Melewati setup PM2..."
+                return
+            }
         }
         Success "PM2 berhasil diinstal."
     } else {
@@ -377,7 +444,7 @@ function Setup-PM2 {
     }
 
     # Hapus proses PM2 lama jika ada
-    & pm2 delete dynamic-proxy 2>&1 | Out-Null
+    cmd /c "pm2 delete dynamic-proxy 2>nul" | Out-Null
 
     # Buat ecosystem file untuk PM2
     $ecosystemPath = Join-Path $InstallDir "ecosystem.config.js"
@@ -404,11 +471,11 @@ module.exports = {
 
     # Start nginx via PM2
     Info "Menjalankan Nginx via PM2..."
-    & pm2 start $ecosystemPath 2>&1 | Out-Null
+    cmd /c "pm2 start `"$ecosystemPath`"" 2>&1
     Start-Sleep -Seconds 2
 
     # Verifikasi
-    $pm2Status = & pm2 jlist 2>&1
+    $pm2Status = cmd /c "pm2 jlist" 2>&1 | Out-String
     if ($pm2Status -match 'dynamic-proxy') {
         Success "Nginx berjalan via PM2."
     } else {
@@ -416,31 +483,36 @@ module.exports = {
     }
 
     # Save PM2 process list
-    & pm2 save 2>&1 | Out-Null
+    cmd /c "pm2 save" 2>&1 | Out-Null
     Success "PM2 process list disimpan."
 
-    # Setup PM2 startup (Windows service)
-    Info "Mengatur PM2 auto-start saat boot..."
-    $pm2Home = $env:PM2_HOME
-    if ([string]::IsNullOrWhiteSpace($pm2Home)) {
-        $pm2Home = Join-Path $env:USERPROFILE ".pm2"
+    # Setup auto-start via Windows Task Scheduler
+    Info "Mengatur auto-start saat boot via Task Scheduler..."
+
+    # Cari path lengkap pm2.cmd
+    $pm2CmdPath = Join-Path $npmPrefix "pm2.cmd"
+    if (-not (Test-Path $pm2CmdPath)) {
+        $pm2CmdPath = (Get-Command pm2 -ErrorAction SilentlyContinue).Source
     }
 
-    # Install pm2-windows-startup
-    $pm2Startup = Get-Command pm2-startup -ErrorAction SilentlyContinue
-    if (-not $pm2Startup) {
-        Info "Menginstal pm2-windows-startup..."
-        & npm install -g pm2-windows-startup 2>&1 | Out-Null
-    }
+    if ($pm2CmdPath -and (Test-Path $pm2CmdPath)) {
+        # Hapus task lama jika ada
+        cmd /c "schtasks /Delete /TN DynamicProxyPM2 /F 2>nul" | Out-Null
 
-    # Jalankan pm2-startup install
-    $pm2StartupCmd = Get-Command pm2-startup -ErrorAction SilentlyContinue
-    if ($pm2StartupCmd) {
-        & pm2-startup install 2>&1 | Out-Null
-        Success "PM2 auto-start saat boot diaktifkan."
+        # Buat scheduled task untuk menjalankan pm2 resurrect saat startup
+        cmd /c "schtasks /Create /TN DynamicProxyPM2 /TR `"cmd /c \`"$pm2CmdPath\`" resurrect`" /SC ONSTART /RU SYSTEM /RL HIGHEST /F"
+
+        # Verifikasi task berhasil dibuat
+        $taskCheck = cmd /c "schtasks /Query /TN DynamicProxyPM2 2>nul" | Out-String
+        if ($taskCheck -match "DynamicProxyPM2") {
+            Success "Auto-start saat boot diaktifkan (Task Scheduler: DynamicProxyPM2)."
+        } else {
+            Warn "Gagal membuat scheduled task."
+            Warn "Jalankan manual: schtasks /Create /TN DynamicProxyPM2 /TR `"cmd /c $pm2CmdPath resurrect`" /SC ONSTART /RU SYSTEM /RL HIGHEST /F"
+        }
     } else {
-        Warn "pm2-windows-startup gagal diinstal."
-        Warn "Jalankan manual: npm install -g pm2-windows-startup && pm2-startup install"
+        Warn "pm2.cmd tidak ditemukan. Auto-start tidak dapat dikonfigurasi."
+        Warn "Jalankan manual setelah reboot: pm2 resurrect"
     }
 }
 
@@ -497,8 +569,8 @@ function Invoke-Uninstall {
     # Hapus dari PM2
     $pm2Cmd = Get-Command pm2 -ErrorAction SilentlyContinue
     if ($pm2Cmd) {
-        & pm2 delete dynamic-proxy 2>&1 | Out-Null
-        & pm2 save 2>&1 | Out-Null
+        cmd /c "pm2 delete dynamic-proxy 2>nul" | Out-Null
+        cmd /c "pm2 save" 2>&1 | Out-Null
         Success "Proses PM2 dynamic-proxy dihapus."
     }
     Stop-Process -Name nginx -ErrorAction SilentlyContinue
@@ -527,12 +599,9 @@ function Invoke-Uninstall {
     Step "Menghapus Script Helper & PM2 Startup"
     $DesktopPath = [Environment]::GetFolderPath("Desktop")
 
-    # Hapus PM2 startup service
-    $pm2StartupCmd = Get-Command pm2-startup -ErrorAction SilentlyContinue
-    if ($pm2StartupCmd) {
-        & pm2-startup uninstall 2>&1 | Out-Null
-        Success "PM2 auto-start dihapus."
-    }
+    # Hapus Scheduled Task
+    cmd /c "schtasks /Delete /TN DynamicProxyPM2 /F 2>nul" | Out-Null
+    Success "Scheduled task DynamicProxyPM2 dihapus."
 
     # Hapus ecosystem file
     $ecosystemPath = Join-Path $InstallDir "ecosystem.config.js"
