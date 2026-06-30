@@ -8,9 +8,11 @@ Ubah IP address menjadi subdomain dengan mengganti titik (`.`) menjadi dash (`-`
 
 | Subdomain | Proxy ke |
 |---|---|
-| `192-168-1-100.proxy.example.com` | `http://192.168.1.100` |
+| `192-168-1-100.proxy.example.com` | `http://192.168.1.100` *(Otomatis fallback ke `https://` jika ditolak)*|
 | `192-168-1-100-8080.proxy.example.com` | `http://192.168.1.100:8080` |
 | `10-0-0-1-3000.proxy.example.com` | `http://10.0.0.1:3000` |
+| `s-192-168-1-100.proxy.example.com` | `https://192.168.1.100` *(Memaksa HTTPS)* |
+| `s-10-0-0-1-8443.proxy.example.com` | `https://10.0.0.1:8443` |
 
 ## Prasyarat
 
@@ -186,4 +188,4 @@ dynamic-proxy/
 
 ## Lisensi
 
-MIT License
+Mikrofast TEAM License 2026
